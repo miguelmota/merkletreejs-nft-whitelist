@@ -13,7 +13,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 contract WhitelistSale is ERC721 {
-  bytes32 public merkleRoot;
+  bytes32 immutable public merkleRoot;
   uint256 public nextTokenId;
   mapping(address => bool) public claimed;
 
@@ -21,10 +21,14 @@ contract WhitelistSale is ERC721 {
     merkleRoot = _merkleRoot;
   }
 
+  function toBytes32(address addr) pure internal returns (bytes32) {
+    return bytes32(uint256(uint160(addr)));
+  }
+
   function mint(bytes32[] calldata merkleProof) public payable {
     require(claimed[msg.sender] == false, "already claimed");
     claimed[msg.sender] = true;
-    require(MerkleProof.verify(merkleProof, merkleRoot, keccak256(abi.encodePacked(msg.sender))), "invalid merkle proof");
+    require(MerkleProof.verify(merkleProof, merkleRoot, toBytes32(msg.sender)) == true, "invalid merkle proof");
     nextTokenId++;
     _mint(msg.sender, nextTokenId);
   }
@@ -47,7 +51,11 @@ describe('WhitelistSale', function () {
     const whitelisted = accounts.slice(0, 5)
     const notWhitelisted = accounts.slice(5, 10)
 
-    const leaves = whitelisted.map(account => keccak256(account.address))
+    const padBuffer = (addr) => {
+      return Buffer.from(addr.substr(2).padStart(32*2, 0), 'hex')
+    }
+
+    const leaves = whitelisted.map(account => padBuffer(account.address))
     const tree = new MerkleTree(leaves, keccak256, { sort: true })
     const merkleRoot = tree.getHexRoot()
 
@@ -55,8 +63,8 @@ describe('WhitelistSale', function () {
     const whitelistSale = await WhitelistSale.deploy(merkleRoot)
     await whitelistSale.deployed()
 
-    const merkleProof = tree.getHexProof(keccak256(whitelisted[0].address))
-    const invalidMerkleProof = tree.getHexProof(keccak256(notWhitelisted[0].address))
+    const merkleProof = tree.getHexProof(padBuffer(whitelisted[0].address))
+    const invalidMerkleProof = tree.getHexProof(padBuffer(notWhitelisted[0].address))
 
     await expect(whitelistSale.mint(merkleProof)).to.not.be.rejected
     await expect(whitelistSale.mint(merkleProof)).to.be.rejectedWith('already claimed')
