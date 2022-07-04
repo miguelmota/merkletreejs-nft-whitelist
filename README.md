@@ -1,3 +1,5 @@
+#### NOTICE: The solidity code is unaudited and is for demo purposes. Use at your own risk!
+
 # MerkleTree.js Solidity NFT Whitelist example
 
 > Allow NFT minting only to whitelisted accounts by verifying merkle proof in [Solidity](https://github.com/ethereum/solidity) contract. Merkle root and merkle proofs are constructed using [MerkleTree.js](https://github.com/miguelmota/merkletreejs).
